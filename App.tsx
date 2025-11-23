@@ -5,12 +5,14 @@ import { OrderForm } from './components/OrderForm';
 import { OrderList } from './components/OrderList';
 import { AdminPanel } from './components/AdminPanel';
 import { AdminLogin } from './components/AdminLogin';
+import { AppLogin } from './components/AppLogin';
+import { Dashboard } from './components/Dashboard';
 import { Button } from './components/ui/Button';
-import { Plus, LayoutGrid, List, RefreshCw, Loader2, AlertTriangle, Globe, Lock, Database } from 'lucide-react';
+import { Plus, LayoutGrid, List, RefreshCw, Loader2, AlertTriangle, Globe, Lock, Database, Download, BarChart3 } from 'lucide-react';
 import { fetchOrders, createOrder, updateOrder, deleteOrder, fetchConfig, saveConfig } from './lib/appwrite';
 
 function App() {
-  const [view, setView] = useState<'list' | 'form' | 'admin'>('list');
+  const [view, setView] = useState<'list' | 'form' | 'admin' | 'dashboard'>('list');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [missingAttribute, setMissingAttribute] = useState<string>('');
@@ -21,13 +23,16 @@ function App() {
 
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
-  // Admin Auth State
+  // Auth State
+  const [isAppAuthenticated, setIsAppAuthenticated] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
-  // Initial Load
+  // Initial Load - Only when authenticated
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isAppAuthenticated) {
+        loadData();
+    }
+  }, [isAppAuthenticated]);
 
   const loadData = async () => {
     setLoading(true);
@@ -113,6 +118,56 @@ function App() {
     }
   };
 
+  const handleExportExcel = () => {
+    if (orders.length === 0) {
+        alert("Não há registros para exportar.");
+        return;
+    }
+
+    // Cabeçalhos do CSV
+    const headers = [
+        "Registro", "Cliente", "Cidade", "Cluster", "Status",
+        "Supervisor", "Alt. Rede", "Rede Designada", "Rede Construída",
+        "Chamado", "Atualizado Por", "Data Criação", "Obs"
+    ];
+
+    // Gera as linhas
+    const csvRows = orders.map(order => {
+        const dateStr = new Date(order.dataCriacao).toLocaleDateString('pt-BR');
+        // Função auxiliar para tratar campos com texto (aspas, ponto e vírgula, quebras de linha)
+        const safe = (str: string) => `"${(str || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+
+        return [
+            safe(order.pedido),
+            safe(order.cliente),
+            safe(order.cidade),
+            safe(order.cluster),
+            safe(order.status),
+            safe(order.supervisor),
+            safe(order.alteracaoRede),
+            safe(order.redeDesignada),
+            safe(order.redeConstruida),
+            safe(order.chamado),
+            safe(order.atualizadoPor),
+            safe(dateStr),
+            safe(order.obs)
+        ].join(';'); // Ponto e vírgula é melhor para Excel no Brasil
+    });
+
+    // Adiciona BOM (\uFEFF) para garantir UTF-8 correto no Excel
+    const csvString = `\uFEFF${headers.join(';')}\n${csvRows.join('\n')}`;
+    
+    // Cria o blob e link de download
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Registros_VIVO_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleUpdateConfig = async (newConfig: SystemConfig) => {
     setLoading(true);
     try {
@@ -144,6 +199,11 @@ function App() {
     setView('admin');
   };
 
+  // --- APP LOGIN CHECK ---
+  if (!isAppAuthenticated) {
+    return <AppLogin onLoginSuccess={() => setIsAppAuthenticated(true)} />;
+  }
+
   // LOADING SCREEN
   if (loading && orders.length === 0 && !error) {
      return (
@@ -154,7 +214,7 @@ function App() {
      );
   }
 
-  // ERROR SCREENS (Schema, Auth, Connection) - Same as before
+  // ERROR SCREENS (Schema, Auth, Connection)
   if (error === 'schema') {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-lilac-50 p-4 font-sans">
@@ -287,6 +347,15 @@ function App() {
             >
               <List size={24} />
             </button>
+
+            <button 
+              onClick={() => setView('dashboard')}
+              className={`p-3 rounded-2xl transition-all ${view === 'dashboard' ? 'bg-lilac-100 text-lilac-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+              title="Dashboard"
+            >
+              <BarChart3 size={24} />
+            </button>
+
             <button 
               onClick={handleAdminClick}
               className={`p-3 rounded-2xl transition-all ${view === 'admin' ? 'bg-lilac-100 text-lilac-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
@@ -303,14 +372,26 @@ function App() {
         
         {view === 'list' && (
           <div className="relative">
-            <div className="flex justify-end mb-6 sticky top-24 z-30">
+            <div className="flex justify-end gap-3 mb-6 sticky top-24 z-30">
+               <Button onClick={handleExportExcel} size="lg" variant="secondary" icon={<Download size={20} />} className="shadow-xl shadow-lilac-100 border-lilac-200 text-lilac-700 hover:bg-green-50 hover:text-green-700 hover:border-green-200">
+                 Excel
+               </Button>
                <Button onClick={handleCreateNew} size="lg" icon={<Plus />} className="shadow-2xl shadow-lilac-300/50">
                  Novo Registro
                </Button>
             </div>
             {loading && <div className="text-center py-4 text-lilac-500">Carregando...</div>}
-            <OrderList orders={orders} onEdit={handleEditOrder} onDelete={handleDeleteOrder} />
+            <OrderList 
+                orders={orders} 
+                config={config}
+                onEdit={handleEditOrder} 
+                onDelete={handleDeleteOrder} 
+            />
           </div>
+        )}
+
+        {view === 'dashboard' && (
+            <Dashboard orders={orders} config={config} />
         )}
 
         {view === 'form' && (
