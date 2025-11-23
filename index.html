@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <title>Gestor VIVO_SC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Quicksand', 'sans-serif'],
+            },
+            colors: {
+              lilac: {
+                50: '#fbf7fd',
+                100: '#f5edfa',
+                200: '#ebdcf5',
+                300: '#dec0ee',
+                400: '#cc9ce3',
+                500: '#b674d6',
+                600: '#9f51c2',
+                700: '#883ea5',
+                800: '#723388',
+                900: '#5f2b6e',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <!-- Error Handler para mostrar erros na tela em vez de tela branca -->
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        const root = document.getElementById('root');
+        if (root) {
+          root.innerHTML = `
+            <div style="padding: 20px; font-family: sans-serif; color: #723388; background: #fbf7fd; height: 100vh; display: flex; flex-direction: column; justify-content: center; items-align: center; text-align: center;">
+              <h2 style="font-size: 24px; margin-bottom: 10px;">Ops! Algo deu errado.</h2>
+              <p style="margin-bottom: 20px;">Não foi possível carregar o aplicativo.</p>
+              <pre style="background: #eee; padding: 15px; border-radius: 8px; text-align: left; overflow: auto; max-width: 800px; margin: 0 auto; color: #333;">${message}\n\n${source}:${lineno}</pre>
+              <button onclick="window.location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #9f51c2; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold;">Tentar Novamente</button>
+            </div>
+          `;
+        }
+      };
+    </script>
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "appwrite": "https://esm.sh/appwrite@14.0.1?target=esnext"
+      }
+    }
+    </script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-50 text-slate-800">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
