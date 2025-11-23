@@ -66,7 +66,12 @@ export const AppLogin: React.FC<AppLoginProps> = ({ onLoginSuccess }) => {
         </form>
       </Card>
       
-      <p className="mt-8 text-lilac-400 text-sm font-medium">© 2025 Gestor VIVO_SC</p>
+      <div className="mt-8 text-center">
+         <p className="text-lilac-500 text-sm font-bold mb-1">© 2025 Gestor VIVO_SC</p>
+         <p className="text-lilac-400 text-xs font-medium opacity-80">
+           Planejado por Juliane Souza e Desenvolvido por Luciano Engel
+         </p>
+      </div>
     </div>
   );
 };
