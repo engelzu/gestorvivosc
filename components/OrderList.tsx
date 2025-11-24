@@ -1,22 +1,25 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Order, SystemConfig } from '../types';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Edit, FileText, MapPin, User, AlertCircle, Trash2, Search, Filter, X } from 'lucide-react';
+import { Edit, FileText, MapPin, User, AlertCircle, Trash2, Search, Filter, X, Loader2 } from 'lucide-react';
 
 interface OrderListProps {
   orders: Order[];
   config: SystemConfig;
   onEdit: (order: Order) => void;
   onDelete: (id: string) => void;
+  isLoading?: boolean;
 }
 
-export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, onDelete }) => {
+export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, onDelete, isLoading = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [cityFilter, setCityFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   // Filtra os pedidos baseado na busca e nos dropdowns
   const filteredOrders = useMemo(() => {
@@ -50,11 +53,24 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, on
     setClusterFilter('');
   };
 
-  const handleDeleteConfirm = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este registro?')) {
-      onDelete(id);
+  const handleDeleteClick = (id: string) => {
+    setItemToDelete(id);
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete) {
+      setDeletingId(itemToDelete);
+      onDelete(itemToDelete);
+      setItemToDelete(null);
     }
   };
+
+  // Se o loading geral acabar, reseta o indicador de delete local
+  useEffect(() => {
+      if (!isLoading) {
+          setDeletingId(null);
+      }
+  }, [isLoading]);
 
   // Componentes visuais para inputs de filtro
   const FilterDropdown = ({ 
@@ -215,18 +231,20 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, on
                       <td className="p-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button 
+                            disabled={isLoading}
                             onClick={() => onEdit(order)}
-                            className="p-2 text-lilac-500 hover:text-lilac-700 hover:bg-lilac-100 rounded-full transition-all"
+                            className="p-2 text-lilac-500 hover:text-lilac-700 hover:bg-lilac-100 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Editar"
                           >
                             <Edit size={20} />
                           </button>
                           <button 
-                            onClick={() => handleDeleteConfirm(order.id)}
-                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                            disabled={isLoading}
+                            onClick={() => handleDeleteClick(order.id)}
+                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Excluir"
                           >
-                            <Trash2 size={20} />
+                            {deletingId === order.id ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
                           </button>
                         </div>
                       </td>
@@ -270,20 +288,22 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, on
 
                 <div className="flex gap-2">
                   <Button 
+                    disabled={isLoading}
                     variant="secondary" 
                     size="sm" 
-                    className="flex-1 rounded-xl" 
+                    className="flex-1 rounded-xl disabled:opacity-50" 
                     onClick={() => onEdit(order)}
                     icon={<Edit size={16}/>}
                   >
                     Editar
                   </Button>
                   <Button 
+                    disabled={isLoading}
                     variant="ghost" 
                     size="sm" 
-                    className="rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50" 
-                    onClick={() => handleDeleteConfirm(order.id)}
-                    icon={<Trash2 size={16}/>}
+                    className="rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50" 
+                    onClick={() => handleDeleteClick(order.id)}
+                    icon={deletingId === order.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16}/>}
                   >
                     Excluir
                   </Button>
@@ -292,6 +312,39 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, on
             ))}
           </div>
         </>
+      )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden border border-lilac-100 scale-100">
+                <div className="p-6 text-center">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Trash2 className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">Excluir Registro?</h3>
+                    <p className="text-slate-500 text-sm mb-6">
+                        Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.
+                    </p>
+                    <div className="flex gap-3">
+                        <Button 
+                            variant="secondary" 
+                            className="flex-1"
+                            onClick={() => setItemToDelete(null)}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            variant="danger" 
+                            className="flex-1 shadow-red-200"
+                            onClick={confirmDelete}
+                        >
+                            Sim, Excluir
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
       )}
     </div>
   );
