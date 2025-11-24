@@ -63,14 +63,21 @@ function App() {
           setError('connection'); // CORS error
       } else if (code === 401 || code === 403 || msg.includes('unauthorized') || msg.includes('not authorized') || msg.includes('permissions')) {
           setError('auth'); // Permission error
-      } else if (msg.includes('unknown attribute') || msg.includes('invalid document structure')) {
+      } else if (msg.includes('unknown attribute') || msg.includes('invalid document structure') || msg.includes('missing required attribute')) {
           // Extract attribute name if possible
-          const match = err.message.match(/Unknown attribute: ["']?([^"']+)["']?/i);
+          // Regex robusto para pegar 'Unknown attribute: "nome"' ou 'Missing required attribute "nome"'
+          const match = err.message.match(/(?:Unknown attribute|Missing required attribute)[:\s]+["']?([^"']+)["']?/i);
+          
           if (match && match[1]) {
               setMissingAttribute(match[1]);
           } else {
               // Fallback if regex fails but we know it's about structure
               if (msg.includes('atualizadopor')) setMissingAttribute('atualizadoPor');
+              else if (msg.includes('value')) setMissingAttribute('value');
+              else if (msg.includes('datatype')) setMissingAttribute('datatype');
+              else if (msg.includes('isactive')) setMissingAttribute('isActive');
+              else if (msg.includes('createdat')) setMissingAttribute('createdAt');
+              else if (msg.includes('updatedat')) setMissingAttribute('updatedAt');
               else setMissingAttribute('algum campo faltando');
           }
           setError('schema');
@@ -112,6 +119,10 @@ function App() {
         await loadData();
     } catch (err: any) {
         console.error("Erro ao excluir:", err);
+        // Se for erro de permissão, dá um feedback mais direto antes de mudar a tela
+        if (err.code === 401 || err.code === 403) {
+            alert("ERRO DE PERMISSÃO: Você precisa habilitar a permissão 'DELETE' (Excluir) nas configurações da coleção 'orders' no Appwrite Console.");
+        }
         handleError(err);
     } finally {
         setLoading(false);
@@ -204,7 +215,7 @@ function App() {
     return <AppLogin onLoginSuccess={() => setIsAppAuthenticated(true)} />;
   }
 
-  // LOADING SCREEN
+  // LOADING SCREEN (Initial only)
   if (loading && orders.length === 0 && !error) {
      return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-lilac-50 text-lilac-600">
@@ -232,7 +243,7 @@ function App() {
                     <p className="font-bold text-lilac-900">Como corrigir:</p>
                     <ol className="list-decimal list-inside space-y-2">
                         <li>Acesse o <strong>Appwrite Console</strong> &gt; <strong>Databases</strong> &gt; <strong>GestorDB</strong>.</li>
-                        <li>Clique na coleção <strong>orders</strong>.</li>
+                        <li>Clique na coleção <strong>orders</strong> ou <strong>config</strong> (dependendo de onde ocorreu o erro).</li>
                         <li>Clique na aba <strong>Attributes</strong>.</li>
                         <li>Clique em <strong>Create Attribute</strong> &gt; <strong>String</strong>.</li>
                         <li>No campo <strong>Attribute Key</strong>, digite exatamente: <strong>{missingAttribute}</strong></li>
@@ -254,9 +265,9 @@ function App() {
             <div className="bg-white p-8 rounded-3xl shadow-xl max-w-2xl w-full border border-lilac-200 animate-fadeIn">
                 <div className="flex items-center gap-3 text-rose-600 mb-6">
                     <Lock size={40} />
-                    <h1 className="text-2xl font-bold">Falta Permissão de Gravação</h1>
+                    <h1 className="text-2xl font-bold">Falta Permissão (Especialmente DELETE)</h1>
                 </div>
-                <p className="text-slate-600 mb-6 text-lg">O Appwrite bloqueou a operação ("User not authorized"). Você precisa autorizar a criação e edição de dados para usuários públicos.</p>
+                <p className="text-slate-600 mb-6 text-lg">O Appwrite bloqueou a operação. Isso quase sempre acontece porque a permissão <strong>DELETE (Excluir)</strong> não foi marcada nas configurações.</p>
                 <div className="bg-lilac-50 p-6 rounded-2xl border border-lilac-100 space-y-4">
                     <h3 className="font-bold text-lilac-900 flex items-center gap-2"><SettingsIcon size={20} /> Como corrigir no Appwrite Console:</h3>
                     <div className="space-y-4 text-slate-700 text-sm">
@@ -266,9 +277,8 @@ function App() {
                             <li>Clique na coleção (ex: <strong>orders</strong>).</li>
                             <li>Clique na aba <strong>Settings</strong>.</li>
                             <li>Role até a seção <strong>Permissions</strong>.</li>
-                            <li>Se já tiver um papel "Any", apague-o e adicione novamente para garantir.</li>
-                            <li>Clique em <strong>Add Role</strong> e selecione <strong>Any</strong>.</li>
-                            <li>⚠️ <strong>IMPORTANTE:</strong> Marque TODAS as caixas: <strong className="text-green-700 bg-green-100 px-1 rounded">Read, Create, Update, Delete</strong>.</li>
+                            <li>Clique em <strong>Update</strong> ao lado do papel <strong>Any</strong> (ou adicione se não existir).</li>
+                            <li>⚠️ <strong>IMPORTANTE:</strong> Certifique-se que <strong>DELETE</strong> está marcado, além de Read, Create e Update.</li>
                             <li>Clique em <strong>Update</strong> para salvar.</li>
                         </ol>
                     </div>
@@ -380,12 +390,14 @@ function App() {
                  Novo Registro
                </Button>
             </div>
-            {loading && <div className="text-center py-4 text-lilac-500">Carregando...</div>}
+            {/* O indicador de loading global foi removido daqui para não esconder a lista, 
+                agora é controlado internamente pelo OrderList para bloquear botões */}
             <OrderList 
                 orders={orders} 
                 config={config}
                 onEdit={handleEditOrder} 
-                onDelete={handleDeleteOrder} 
+                onDelete={handleDeleteOrder}
+                isLoading={loading}
             />
           </div>
         )}
