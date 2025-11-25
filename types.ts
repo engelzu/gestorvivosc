@@ -1,3 +1,4 @@
+
 export interface Order {
   id: string;
   pedido: string;
@@ -12,6 +13,8 @@ export interface Order {
   redeConstruida: string;
   chamado: string;
   atualizadoPor: string;
+  draft?: number;        // Novo Campo Numérico
+  statusDraft?: string;  // Novo Campo de Status
   dataCriacao: number;
 }
 
@@ -21,6 +24,7 @@ export interface SystemConfig {
   supervisores: string[];
   statusList: string[];
   atualizadores: string[];
+  statusDraftList: string[]; // Nova lista configurável
 }
 
 export const DEFAULT_CONFIG: SystemConfig = {
@@ -29,4 +33,5 @@ export const DEFAULT_CONFIG: SystemConfig = {
   supervisores: ['Ana Silva', 'Carlos Oliveira', 'Mariana Santos'],
   statusList: ['Novo', 'Em Análise', 'Aprovado', 'Em Construção', 'Concluído', 'Cancelado'],
   atualizadores: ['João Tech', 'Maria Ops', 'Pedro Field'],
+  statusDraftList: ['Aberto', 'Em Andamento', 'Finalizado'], // Padrão
 };

@@ -8,7 +8,7 @@ import { AdminLogin } from './components/AdminLogin';
 import { AppLogin } from './components/AppLogin';
 import { Dashboard } from './components/Dashboard';
 import { Button } from './components/ui/Button';
-import { Plus, LayoutGrid, List, RefreshCw, Loader2, AlertTriangle, Globe, Lock, Database, Download, BarChart3 } from 'lucide-react';
+import { Plus, LayoutGrid, List, RefreshCw, Loader2, AlertTriangle, Globe, Lock, Database, Download, BarChart3, LogOut } from 'lucide-react';
 import { fetchOrders, createOrder, updateOrder, deleteOrder, fetchConfig, saveConfig } from './lib/appwrite';
 
 function App() {
@@ -24,15 +24,17 @@ function App() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   // Auth State
-  const [isAppAuthenticated, setIsAppAuthenticated] = useState(false);
+  // userRole: null (não logado), 'admin' (vivosc2025), 'restricted' (usuariovivosc2025)
+  const [userRole, setUserRole] = useState<'admin' | 'restricted' | null>(null);
+  
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   // Initial Load - Only when authenticated
   useEffect(() => {
-    if (isAppAuthenticated) {
+    if (userRole) {
         loadData();
     }
-  }, [isAppAuthenticated]);
+  }, [userRole]);
 
   const loadData = async () => {
     setLoading(true);
@@ -64,14 +66,11 @@ function App() {
       } else if (code === 401 || code === 403 || msg.includes('unauthorized') || msg.includes('not authorized') || msg.includes('permissions')) {
           setError('auth'); // Permission error
       } else if (msg.includes('unknown attribute') || msg.includes('invalid document structure') || msg.includes('missing required attribute')) {
-          // Extract attribute name if possible
-          // Regex robusto para pegar 'Unknown attribute: "nome"' ou 'Missing required attribute "nome"'
           const match = err.message.match(/(?:Unknown attribute|Missing required attribute)[:\s]+["']?([^"']+)["']?/i);
           
           if (match && match[1]) {
               setMissingAttribute(match[1]);
           } else {
-              // Fallback if regex fails but we know it's about structure
               if (msg.includes('atualizadopor')) setMissingAttribute('atualizadoPor');
               else if (msg.includes('value')) setMissingAttribute('value');
               else if (msg.includes('datatype')) setMissingAttribute('datatype');
@@ -113,13 +112,15 @@ function App() {
   };
 
   const handleDeleteOrder = async (id: string) => {
+    // Segurança extra: Restrito não pode excluir
+    if (userRole === 'restricted') return;
+
     setLoading(true);
     try {
         await deleteOrder(id);
         await loadData();
     } catch (err: any) {
         console.error("Erro ao excluir:", err);
-        // Se for erro de permissão, dá um feedback mais direto antes de mudar a tela
         if (err.code === 401 || err.code === 403) {
             alert("ERRO DE PERMISSÃO: Você precisa habilitar a permissão 'DELETE' (Excluir) nas configurações da coleção 'orders' no Appwrite Console.");
         }
@@ -135,17 +136,14 @@ function App() {
         return;
     }
 
-    // Cabeçalhos do CSV
     const headers = [
         "Registro", "Cliente", "Cidade", "Cluster", "Status",
         "Supervisor", "Alt. Rede", "Rede Designada", "Rede Construída",
         "Chamado", "Atualizado Por", "Data Criação", "Obs"
     ];
 
-    // Gera as linhas
     const csvRows = orders.map(order => {
         const dateStr = new Date(order.dataCriacao).toLocaleDateString('pt-BR');
-        // Função auxiliar para tratar campos com texto (aspas, ponto e vírgula, quebras de linha)
         const safe = (str: string) => `"${(str || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
 
         return [
@@ -162,13 +160,11 @@ function App() {
             safe(order.atualizadoPor),
             safe(dateStr),
             safe(order.obs)
-        ].join(';'); // Ponto e vírgula é melhor para Excel no Brasil
+        ].join(';'); 
     });
 
-    // Adiciona BOM (\uFEFF) para garantir UTF-8 correto no Excel
     const csvString = `\uFEFF${headers.join(';')}\n${csvRows.join('\n')}`;
     
-    // Cria o blob e link de download
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -210,9 +206,16 @@ function App() {
     setView('admin');
   };
 
+  const handleLogout = () => {
+      setUserRole(null);
+      setIsAdminAuthenticated(false);
+      setView('list');
+      setOrders([]);
+  };
+
   // --- APP LOGIN CHECK ---
-  if (!isAppAuthenticated) {
-    return <AppLogin onLoginSuccess={() => setIsAppAuthenticated(true)} />;
+  if (!userRole) {
+    return <AppLogin onLoginSuccess={(role) => setUserRole(role)} />;
   }
 
   // LOADING SCREEN (Initial only)
@@ -332,12 +335,15 @@ function App() {
       <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-b border-lilac-100 shadow-sm z-50 px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('list')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-lilac-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-lilac-200">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${userRole === 'restricted' ? 'from-slate-400 to-slate-500' : 'from-lilac-500 to-purple-600'} flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-lilac-200`}>
               V
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-lilac-900 tracking-tight hidden sm:block">
-              Gestor <span className="text-lilac-500">VIVO_SC</span>
-            </h1>
+            <div className="flex flex-col">
+                <h1 className="text-xl md:text-2xl font-bold text-lilac-900 tracking-tight hidden sm:block leading-none">
+                Gestor <span className="text-lilac-500">VIVO_SC</span>
+                </h1>
+                {userRole === 'restricted' && <span className="text-xs text-slate-500 font-bold">Perfil Restrito</span>}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
@@ -366,12 +372,22 @@ function App() {
               <BarChart3 size={24} />
             </button>
 
+            {userRole === 'admin' && (
+                <button 
+                onClick={handleAdminClick}
+                className={`p-3 rounded-2xl transition-all ${view === 'admin' ? 'bg-lilac-100 text-lilac-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+                title="Administração"
+                >
+                <LayoutGrid size={24} />
+                </button>
+            )}
+
             <button 
-              onClick={handleAdminClick}
-              className={`p-3 rounded-2xl transition-all ${view === 'admin' ? 'bg-lilac-100 text-lilac-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Administração"
+              onClick={handleLogout}
+              className="p-3 rounded-2xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all ml-2 border border-transparent hover:border-red-100"
+              title="Sair"
             >
-              <LayoutGrid size={24} />
+              <LogOut size={20} />
             </button>
           </div>
         </div>
@@ -386,18 +402,20 @@ function App() {
                <Button onClick={handleExportExcel} size="lg" variant="secondary" icon={<Download size={20} />} className="shadow-xl shadow-lilac-100 border-lilac-200 text-lilac-700 hover:bg-green-50 hover:text-green-700 hover:border-green-200">
                  Excel
                </Button>
-               <Button onClick={handleCreateNew} size="lg" icon={<Plus />} className="shadow-2xl shadow-lilac-300/50">
-                 Novo Registro
-               </Button>
+               {userRole === 'admin' && (
+                    <Button onClick={handleCreateNew} size="lg" icon={<Plus />} className="shadow-2xl shadow-lilac-300/50">
+                        Novo Registro
+                    </Button>
+               )}
             </div>
-            {/* O indicador de loading global foi removido daqui para não esconder a lista, 
-                agora é controlado internamente pelo OrderList para bloquear botões */}
+            
             <OrderList 
                 orders={orders} 
                 config={config}
                 onEdit={handleEditOrder} 
                 onDelete={handleDeleteOrder}
                 isLoading={loading}
+                userRole={userRole}
             />
           </div>
         )}
@@ -412,6 +430,7 @@ function App() {
             initialData={editingOrder} 
             onSave={handleSaveOrder} 
             onCancel={() => setView('list')} 
+            userRole={userRole}
           />
         )}
 
