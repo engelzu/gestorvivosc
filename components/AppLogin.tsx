@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 import { ArrowRight, ShieldAlert } from 'lucide-react';
 
 interface AppLoginProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (role: 'admin' | 'restricted') => void;
 }
 
 export const AppLogin: React.FC<AppLoginProps> = ({ onLoginSuccess }) => {
@@ -14,8 +14,11 @@ export const AppLogin: React.FC<AppLoginProps> = ({ onLoginSuccess }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (password === 'vivosc2025') {
-      onLoginSuccess();
+      onLoginSuccess('admin');
+    } else if (password === 'usuariovivosc2025') {
+      onLoginSuccess('restricted');
     } else {
       setError(true);
       setPassword('');

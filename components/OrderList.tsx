@@ -11,15 +11,18 @@ interface OrderListProps {
   onEdit: (order: Order) => void;
   onDelete: (id: string) => void;
   isLoading?: boolean;
+  userRole: 'admin' | 'restricted';
 }
 
-export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, onDelete, isLoading = false }) => {
+export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, onDelete, isLoading = false, userRole }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [cityFilter, setCityFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
+  const isAdmin = userRole === 'admin';
 
   // Filtra os pedidos baseado na busca e nos dropdowns
   const filteredOrders = useMemo(() => {
@@ -65,7 +68,6 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, on
     }
   };
 
-  // Se o loading geral acabar, reseta o indicador de delete local
   useEffect(() => {
       if (!isLoading) {
           setDeletingId(null);
@@ -238,14 +240,17 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, on
                           >
                             <Edit size={20} />
                           </button>
-                          <button 
-                            disabled={isLoading}
-                            onClick={() => handleDeleteClick(order.id)}
-                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Excluir"
-                          >
-                            {deletingId === order.id ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
-                          </button>
+                          
+                          {isAdmin && (
+                              <button 
+                                disabled={isLoading}
+                                onClick={() => handleDeleteClick(order.id)}
+                                className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Excluir"
+                              >
+                                {deletingId === order.id ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+                              </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -297,16 +302,19 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, config, onEdit, on
                   >
                     Editar
                   </Button>
-                  <Button 
-                    disabled={isLoading}
-                    variant="ghost" 
-                    size="sm" 
-                    className="rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50" 
-                    onClick={() => handleDeleteClick(order.id)}
-                    icon={deletingId === order.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16}/>}
-                  >
-                    Excluir
-                  </Button>
+                  
+                  {isAdmin && (
+                    <Button 
+                        disabled={isLoading}
+                        variant="ghost" 
+                        size="sm" 
+                        className="rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50" 
+                        onClick={() => handleDeleteClick(order.id)}
+                        icon={deletingId === order.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16}/>}
+                    >
+                        Excluir
+                    </Button>
+                  )}
                 </div>
               </Card>
             ))}

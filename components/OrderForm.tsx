@@ -1,17 +1,19 @@
+
 import React, { useState, useEffect } from 'react';
 import { Order, SystemConfig } from '../types';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Save, X, ArrowLeft } from 'lucide-react';
+import { Save, X, ArrowLeft, Lock, FileText } from 'lucide-react';
 
 interface OrderFormProps {
   config: SystemConfig;
   initialData?: Order | null;
   onSave: (order: Order) => void;
   onCancel: () => void;
+  userRole: 'admin' | 'restricted';
 }
 
-export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSave, onCancel }) => {
+export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSave, onCancel, userRole }) => {
   const [formData, setFormData] = useState<Order>({
     id: crypto.randomUUID(),
     pedido: '',
@@ -26,8 +28,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
     redeConstruida: '',
     chamado: '',
     atualizadoPor: '',
+    draft: 0,
+    statusDraft: '',
     dataCriacao: Date.now(),
   });
+
+  const isRestricted = userRole === 'restricted';
 
   useEffect(() => {
     if (initialData) {
@@ -35,17 +41,17 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
     }
   }, [initialData]);
 
-  const handleChange = (field: keyof Order, value: string) => {
+  const handleChange = (field: keyof Order, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
   };
 
-  const inputClasses = "w-full p-4 rounded-2xl border-2 border-lilac-100 focus:border-lilac-500 focus:ring-4 focus:ring-lilac-200 outline-none transition-all text-slate-700 bg-white";
-  const labelClasses = "block text-lilac-800 font-bold mb-2 ml-1";
+  const inputClasses = "w-full p-4 rounded-2xl border-2 border-lilac-100 focus:border-lilac-500 focus:ring-4 focus:ring-lilac-200 outline-none transition-all text-slate-700 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:border-slate-200 disabled:cursor-not-allowed";
+  const labelClasses = "block text-lilac-800 font-bold mb-2 ml-1 flex items-center gap-2";
 
   return (
     <div className="animate-fadeIn">
@@ -54,7 +60,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
           <Button variant="ghost" onClick={onCancel} className="!p-2">
             <ArrowLeft size={24} />
           </Button>
-          <h2 className="text-3xl font-bold">{initialData ? 'Editar Registro' : 'Novo Registro'}</h2>
+          <div className="flex flex-col">
+            <h2 className="text-3xl font-bold">{initialData ? 'Editar Registro' : 'Novo Registro'}</h2>
+            {isRestricted && <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded w-fit mt-1">Modo Restrito: Apenas atualização</span>}
+          </div>
         </div>
       </div>
 
@@ -62,15 +71,57 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
         <Card className="mb-20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            {/* Basic Info */}
+            {/* Informações de Draft - NOVO */}
             <div className="col-span-1 md:col-span-2 lg:col-span-3 mb-2">
-               <h3 className="text-lg font-bold text-lilac-600 border-b border-lilac-200 pb-2 mb-4">Informações Básicas</h3>
+               <h3 className="text-lg font-bold text-lilac-600 border-b border-lilac-200 pb-2 mb-4 flex items-center gap-2">
+                 <FileText size={20}/> Draft & Status
+               </h3>
             </div>
 
             <div>
-              <label className={labelClasses}>Nº Registro</label>
+                <label className={labelClasses}>
+                    Nº Draft
+                    {isRestricted && <Lock size={12} className="text-slate-400"/>}
+                </label>
+                <input
+                    type="number"
+                    disabled={isRestricted}
+                    value={formData.draft || ''}
+                    onChange={(e) => handleChange('draft', parseInt(e.target.value) || 0)}
+                    className={inputClasses}
+                    placeholder="Número do Draft"
+                />
+            </div>
+
+            <div>
+                <label className={labelClasses}>
+                    Status Draft
+                    {isRestricted && <Lock size={12} className="text-slate-400"/>}
+                </label>
+                <select
+                    disabled={isRestricted}
+                    value={formData.statusDraft || ''}
+                    onChange={(e) => handleChange('statusDraft', e.target.value)}
+                    className={inputClasses}
+                >
+                    <option value="">Selecione...</option>
+                    {(config.statusDraftList || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+            </div>
+
+            {/* Basic Info */}
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 mb-2 mt-4">
+               <h3 className="text-lg font-bold text-lilac-600 border-b border-lilac-200 pb-2 mb-4">Informações do Pedido</h3>
+            </div>
+
+            <div>
+              <label className={labelClasses}>
+                Nº Registro
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
               <input
                 required
+                disabled={isRestricted}
                 type="text"
                 value={formData.pedido}
                 onChange={(e) => handleChange('pedido', e.target.value)}
@@ -80,9 +131,13 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div className="md:col-span-2">
-              <label className={labelClasses}>Cliente</label>
+              <label className={labelClasses}>
+                Cliente
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
               <input
                 required
+                disabled={isRestricted}
                 type="text"
                 value={formData.cliente}
                 onChange={(e) => handleChange('cliente', e.target.value)}
@@ -92,9 +147,13 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Cidade</label>
+              <label className={labelClasses}>
+                Cidade
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
               <select
                 required
+                disabled={isRestricted}
                 value={formData.cidade}
                 onChange={(e) => handleChange('cidade', e.target.value)}
                 className={inputClasses}
@@ -105,9 +164,13 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Cluster</label>
+              <label className={labelClasses}>
+                Cluster
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
               <select
                 required
+                disabled={isRestricted}
                 value={formData.cluster}
                 onChange={(e) => handleChange('cluster', e.target.value)}
                 className={inputClasses}
@@ -118,7 +181,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Status</label>
+              <label className={labelClasses}>
+                Status
+                {/* Status é permitido para todos */}
+              </label>
               <select
                 required
                 value={formData.status}
@@ -136,8 +202,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Supervisor</label>
+              <label className={labelClasses}>
+                Supervisor
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
               <select
+                disabled={isRestricted}
                 value={formData.supervisor}
                 onChange={(e) => handleChange('supervisor', e.target.value)}
                 className={inputClasses}
@@ -148,8 +218,11 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Alteração de Rede?</label>
-              <div className="flex gap-4 p-2">
+              <label className={labelClasses}>
+                Alteração de Rede?
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
+              <div className={`flex gap-4 p-2 ${isRestricted ? 'opacity-50 pointer-events-none' : ''}`}>
                  <label className="flex items-center gap-2 cursor-pointer p-4 rounded-2xl border-2 border-lilac-100 has-[:checked]:bg-lilac-50 has-[:checked]:border-lilac-500 transition-all flex-1">
                     <input 
                       type="radio" 
@@ -176,8 +249,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Chamado</label>
+              <label className={labelClasses}>
+                Chamado
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
               <input
+                disabled={isRestricted}
                 type="text"
                 value={formData.chamado}
                 onChange={(e) => handleChange('chamado', e.target.value)}
@@ -187,8 +264,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Rede Designada</label>
+              <label className={labelClasses}>
+                Rede Designada
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
               <input
+                disabled={isRestricted}
                 type="text"
                 value={formData.redeDesignada}
                 onChange={(e) => handleChange('redeDesignada', e.target.value)}
@@ -198,8 +279,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Rede Construída</label>
+              <label className={labelClasses}>
+                Rede Construída
+                {isRestricted && <Lock size={12} className="text-slate-400"/>}
+              </label>
               <input
+                disabled={isRestricted}
                 type="text"
                 value={formData.redeConstruida}
                 onChange={(e) => handleChange('redeConstruida', e.target.value)}
@@ -209,7 +294,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div>
-              <label className={labelClasses}>Atualizado Por</label>
+              <label className={labelClasses}>
+                Atualizado Por
+                {/* Permitido para todos */}
+              </label>
               <select
                 value={formData.atualizadoPor}
                 onChange={(e) => handleChange('atualizadoPor', e.target.value)}
@@ -221,7 +309,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ config, initialData, onSav
             </div>
 
             <div className="col-span-1 md:col-span-2 lg:col-span-3">
-              <label className={labelClasses}>Observações</label>
+              <label className={labelClasses}>
+                Observações
+                {/* Permitido para todos */}
+              </label>
               <textarea
                 value={formData.obs}
                 onChange={(e) => handleChange('obs', e.target.value)}

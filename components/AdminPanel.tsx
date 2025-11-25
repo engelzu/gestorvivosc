@@ -23,6 +23,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig }
     { key: 'supervisores', label: 'Supervisores' },
     { key: 'statusList', label: 'Status' },
     { key: 'atualizadores', label: 'Atualizadores' },
+    { key: 'statusDraftList', label: 'Status Draft' }, // Nova Aba
   ];
 
   const handleAdd = () => {
